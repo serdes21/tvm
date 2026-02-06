@@ -68,6 +68,7 @@ tvm_option(INDEX_DEFAULT_I64 "Defaults the index datatype to int64" ON)
 tvm_option(USE_LIBBACKTRACE "Use libbacktrace to supply linenumbers on stack traces" AUTO)
 tvm_option(BACKTRACE_ON_SEGFAULT "Install a signal handler to print a backtrace on segfault" OFF)
 tvm_option(BUILD_STATIC_RUNTIME "Build static version of libtvm_runtime" OFF)
+tvm_option(BUILD_STATIC_TVM "Build static version of libtvm (for FlashTile static linking)" OFF)
 tvm_option(BUILD_DUMMY_LIBTVM "Build a dummy version of libtvm" OFF)
 tvm_option(USE_PAPI "Use Performance Application Programming Interface (PAPI) to read performance counters" OFF)
 tvm_option(USE_GTEST "Use GoogleTest for C++ sanity tests" AUTO)
@@ -548,6 +549,28 @@ else()
   )
   set_property(TARGET tvm_runtime APPEND PROPERTY LINK_OPTIONS "${TVM_NO_UNDEFINED_SYMBOLS}")
   target_link_libraries(tvm_runtime PUBLIC tvm_ffi_shared)
+endif()
+
+# Static libtvm for FlashTile static linking
+if(BUILD_STATIC_TVM)
+  message(STATUS "Building static libtvm")
+  add_library(tvm_static STATIC
+    $<TARGET_OBJECTS:tvm_objs>
+    $<TARGET_OBJECTS:tvm_runtime_objs>
+    $<TARGET_OBJECTS:tvm_libinfo_objs>
+    ${TVM_RUNTIME_EXT_OBJS}
+  )
+  target_link_libraries(tvm_static PUBLIC tvm_ffi_static)
+  set_target_properties(tvm_static PROPERTIES
+    OUTPUT_NAME "tvm_static"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+  )
+  set(NOTICE_STATIC_MULTILINE
+    "You have built static version of libtvm. Make "
+    "sure to use --whole-archive when linking it into your project.")
+  string(CONCAT NOTICE_STATIC ${NOTICE_STATIC_MULTILINE})
+  add_custom_command(TARGET tvm_static POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --yellow --bold ${NOTICE_STATIC})
 endif()
 
 if(USE_Z3)

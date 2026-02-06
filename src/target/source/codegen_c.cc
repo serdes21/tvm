@@ -727,9 +727,34 @@ void CodeGenC::VisitExpr_(const CallNode* op, std::ostream& os) {  // NOLINT(*)
           << "reinterpret expects source and target to have the same number of bits";
       int ssa_scope = BeginScope();
       std::string rhs = SSAGetID(PrintExpr(op->args[0]), source_dtype);
-      os << "(*(";
-      this->PrintType(target_dtype, os);
-      os << " *)(&(" << rhs << ")))";
+      auto is_i64_or_u64 = [](DataType t) {
+        return (t.is_int() || t.is_uint()) && t.bits() == 64 && t.lanes() == 1;
+      };
+
+      // Phase A: Avoid strict-aliasing-violating type punning for pointer/int64 casts
+      // that arise frequently in TileIR ABI lowering (handle + 64-bit address arithmetic).
+      // Instead of emitting `*({T}*)(&x)` (UB under strict aliasing), emit explicit casts.
+      //
+      // - handle -> int64/uint64
+      // - int64/uint64 -> handle
+      // - handle -> handle (explicit pointer cast)
+      if (source_dtype.is_handle() && is_i64_or_u64(target_dtype)) {
+        os << "((";
+        this->PrintType(target_dtype, os);
+        os << ")(" << rhs << "))";
+      } else if (is_i64_or_u64(source_dtype) && target_dtype.is_handle()) {
+        os << "((";
+        this->PrintType(target_dtype, os);
+        os << ")(" << rhs << "))";
+      } else if (source_dtype.is_handle() && target_dtype.is_handle()) {
+        os << "((";
+        this->PrintType(target_dtype, os);
+        os << ")(" << rhs << "))";
+      } else {
+        os << "(*(";
+        this->PrintType(target_dtype, os);
+        os << " *)(&(" << rhs << ")))";
+      }
       EndScope(ssa_scope);
     } else if (op->op.same_as(builtin::isnan())) {
       os << "(";

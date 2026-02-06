@@ -127,11 +127,11 @@ class NameSupply : public ObjectRef {
   /*!
    * \brief Construct NameSupply with a name map created from the given iterator range and
    * the functor.
-   *
-   * The functor should return the name of the dereferenced object.
-   */
+  *
+  * The functor should return the name of the dereferenced object.
+  */
   template <typename Iter, typename Lambda>
-  TVM_DLL explicit NameSupply(Iter begin, Iter end, Lambda f)
+  explicit NameSupply(Iter begin, Iter end, Lambda f)
       : NameSupply("", GetNameMap(begin, end, f)) {}
 
   TVM_FFI_DEFINE_OBJECT_REF_METHODS_NOTNULLABLE(NameSupply, ObjectRef, NameSupplyNode);
